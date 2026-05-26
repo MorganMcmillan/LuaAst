@@ -1,45 +1,25 @@
 ---@alias TokenType "number" | "string" | "identifier" | "keyword" | "punctuation" | "eof"
 
-local char, sub, match, concat = string.char, string.sub, string.match, table.concat
+local sub, match = string.sub, string.match
 local max = math.max
+
+local charSets = require("charSets")
+local ident = charSets.ident
+local identStarter = charSets.identStarter
+local digit = charSets.digit
+local digitStarter = charSets.digitStarter
+local hexDigit = charSets.hexDigit
 
 --- @class Set<T>: table<T, true>
 --- @alias char string
---- @alias Token string
+--- @alias Token string | number
 
 -- Character sets
-
---- Converts a string of characters into a set
---- @param s string
---- @return Set<char>
-local function makeCharSet(s)
-    local set = {}
-    for i = 1, #s do
-        set[sub(s, i, i)] = true
-    end
-    return set
-end
-
-local ws_nl = makeCharSet " \t\r\n"
-local whitespace = makeCharSet " \t"
-local newline = makeCharSet "\r\n"
-
-local sIdentStarter = "aAbBcCdDeEfFgGhHiIjJkKlLmMnNoOpPqQrRsStTuUvVwWxXyYzZ_"
-local identStarter = makeCharSet(sIdentStarter)
-local ident = makeCharSet(sIdentStarter .. "1234567890")
-
-local digitStarter = makeCharSet "123456789"
-local digit = makeCharSet "0123456789"
-local hexDigit = makeCharSet "0123456789aAbBcCdDeEfF"
-
-local operatorsWithEquals = makeCharSet "=<>~"
-local singleCharTokens = makeCharSet "+-*/%^()[]{};:,#"
----
 
 ---@class Lexer: class
 ---@field input string the input source code
 ---@field pos integer the current input position
----@field tokens { [string]: true | fun(self): string } the set of allowed tokens. Function values means that the token sequence takes control of the lexer.
+---@field tokens { [string]: true | fun(self): string?, TokenType? } the set of allowed tokens. Function values means that the token sequence takes control of the lexer.
 ---@field lookaheads { [string]: integer } the lookahead lengths for each token. These are iterated backwards to allow matching multi-character tokens.
 ---@field keywords Set<string>
 local Lexer = require("class"):extend("Lexer")
@@ -54,7 +34,7 @@ function Lexer:init(tokens)
     for token, v in pairs(tokens) do
         -- Conform array part to
         if type(token) == "number" then -- token is in array part
-            token = v --[[@as token]]
+            token = v --[[@as Token]]
             v = true
         end
 
@@ -170,154 +150,34 @@ function Lexer:lexToken()
                     self.pos = self.pos + i
                     return token, "punctuation"
                 else
-                    -- Note: action is responsible for advancing the position
-                    return action(self), "punctuation"
+                    -- Note: action is responsible for advancing the position and returning the token's type
+                    -- Disabled because returning nil is valid and doesn't add anything to the token array
+                    ---@diagnostic disable-next-line: return-type-mismatch
+                    return action(self)
                 end
             end
         end
-    elseif match(c, "[%a_]") then
+    elseif identStarter[c] then
         local ident = self:takeWhile(ident)
         if self.keywords[ident] then
             return ident, "keyword"
         end
         return ident, "identifier"
-    elseif match(c, "[%d]") then
-        return self:takeWhile(digit), "number"
-    end
-end
-
---- LEGACY
----Lexes a single token
----@return string token, TokenType tokenType
-function Lexer:_lexToken()
-    -- Skip whitespace
-    self:takeWhile(whitespace)
-
-    local c = self:peek()
-
-    -- Lex token
-    if identStarter[c] then
-        -- Lex identifier
-        -- Note: keywords and identifiers are lexed the same
-        return self:takeWhile(ident), "identifier"
+        -- TODO: allow adding custom numeric bases, like hex, binary, or other
+        -- TODO: lex numbers with decimal points
+        -- Perhaps allow a custom function to be used, through a config table.
+    elseif c == "0" then
+        if self:peekAhead(2) == "x" then
+            self.pos = self.pos + 2
+            local hex = self:takeWhile(hexDigit)
+            return assert(tonumber(hex, 16)), "number"
+        elseif match(c, "[%d]") then
+            return assert(tonumber(self:takeWhile(digit))), "number"
+        end
     elseif digitStarter[c] then
-        -- Lex number
         return self:takeWhile(digit), "number"
-    elseif c == '0' then
-        -- Lex number with base or 0
-        if self:peek() == 'x' then
-            self:skip()
-            self:skip()
-
-            local hexDigits = self:takeWhile(hexDigit)
-            if #hexDigits == 0 then
-                error("Expected a hex digit sequence, got empty.")
-            end
-
-            return "0x" .. hexDigits, "number"
-        else
-            return "0", "number"
-        end
-    elseif c == '"' or c == '\'' then
-        -- Lex string
-        return self:lexString(c), "string"
-
-        -- Lex punctuation characters
-    elseif c == '-' then
-        self:skip()
-        local next = self:peek()
-        if next == '-' then
-            self:skip()
-            -- Check for multi line comment
-            if self:peek() == '[' and self:peekAhead(1) == '[' then
-                self:takeUntilSequence("]]")
-            end
-            -- Skip single line comment
-            self:takeUntil(newline)
-        else
-            return '-', "punctuation"
-        end
-    elseif c == '.' then
-        self:skip()
-        if self:peek() == '.' then
-            self:skip()
-            if self:peek() == '.' then
-                self:skip()
-                return '...', "punctuation"
-            else
-                return '..', "punctuation"
-            end
-        else
-            return c, "punctuation"
-        end
-    elseif operatorsWithEquals[c] then
-        self:skip()
-        if self:peek() == '=' then
-            self:skip()
-            return c .. '=', "punctuation"
-        else
-            return c, "punctuation"
-        end
-    elseif singleCharTokens[c] then
-        self:skip()
-        return c, "punctuation"
     end
     error("Unexpected character '" .. c .. "'.")
-end
-
-local escapeMappings = {
-    ["\\a"] = '\a',
-    ["\\b"] = '\b',
-    ["\\f"] = '\f',
-    ["\\r"] = '\r',
-    ["\\n"] = '\n',
-    ["\\\n"] = '\n',
-    ["\\t"] = '\t',
-    ["\\v"] = '\v',
-    ["\\'"] = '\'',
-    ["\\\""] = '\"',
-    ---@param lexer Lexer
-    ---@return string
-    ["\\x"] = function(lexer)
-        return char(tonumber(lexer:takeWhile(hexDigit), 16))
-    end,
-}
-
----Lexes a string, processing any escape sequences and returning it without any quotes
----@param endChar string
----@return string
-function Lexer:lexString(endChar)
-    -- Takes until `endChar`
-    -- When `\`: scan following characters
-    -- `\'`: literal single quote
-    local stringPieces = {}
-    local foo = {
-        [endChar] = true,
-        ['\\'] = true
-    }
-
-    while self:peek() ~= endChar do
-        if self:peek() == '\\' then
-            self:skip()
-            -- Process escape sequence
-            local c = self:peek()
-            local escapeMapping = escapeMappings[c]
-            local T = type(escapeMapping)
-            if T == "string" then
-                stringPieces[#stringPieces + 1] = escapeMapping
-            elseif T == "function" then
-                stringPieces[#stringPieces + 1] = escapeMapping(self)
-            elseif digit[c] then
-                -- TODO: limit the characters taken to 3
-                stringPieces[#stringPieces + 1] = char(tonumber(self:takeWhile(digit)))
-            else
-                error("Unexpected escape character '" .. c .. "'.")
-            end
-        end
-        -- TODO:
-        stringPieces[#stringPieces + 1] = self:takeUntil(foo)
-    end
-    return concat(stringPieces)
 end
 
 return Lexer

@@ -46,12 +46,8 @@ local Lexer = require("class"):extend("Lexer")
 
 -- Note: I may add a config table later, for things like identifiers and numbers.
 
----@param input string
 ---@param tokens { [integer]: string, [string]: true | fun(self): string } the allowed tokens
-function Lexer:init(input, tokens)
-    self.input = input
-    self.pos = 1
-
+function Lexer:init(tokens)
     local tokenSet = {}
     local lookaheads = {}
     local keywords = {}
@@ -135,15 +131,21 @@ end
 
 --- Lexes a list of tokens.
 --- This is the main function that lexes the input.
+--- @param input string the input to lex
 --- @return Token[] tokens, TokenType[] tokenTypes
-function Lexer:lex()
+function Lexer:lex(input)
+    self.input = input
+    self.pos = 1
+
     local tokens, tokenTypes = {}, {}
     local n = 1
+
     while self:notEof() do
         tokens[n], tokenTypes[n] = self:lexToken()
         n = n + 1
     end
     tokens[n], tokenTypes[n] = "", "eof"
+
     return tokens, tokenTypes
 end
 

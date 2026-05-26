@@ -1,11 +1,9 @@
 local combinators = {}
 
-local keywords = require("keywords")
-
 --- @param token string
 function combinators.token(token)
     --- @param parser Parser
-    return function (parser)
+    return function(parser)
         return parser:consume(token)
     end
 end
@@ -13,7 +11,7 @@ end
 --- @param expected string
 function combinators.checkToken(expected)
     --- @param parser Parser
-    return function (parser)
+    return function(parser)
         local token = parser:peek()
         if expected == token then
             return expected
@@ -29,9 +27,6 @@ function combinators.identifier(parser)
     local id, type = parser:peek()
     if type ~= "identifier" then
         error("Expected identifier, got " .. type .. ".")
-    end
-    if keywords[id] then
-        error("Expected identifier, got keyword " .. type .. ".")
     end
     parser:skip()
     return id
@@ -71,7 +66,7 @@ end
 ---@return Parsable<T>
 function combinators.after(token, parsable)
     --- @param parser Parser
-    return function (parser)
+    return function(parser)
         parser:consume(token)
         return parser:accept(parsable)
     end
@@ -83,7 +78,7 @@ end
 ---@return Parsable<T | nil>
 function combinators.ifAfter(token, parsable)
     --- @param parser Parser
-    return function (parser)
+    return function(parser)
         if parser:isNext(token) then
             return parser:accept(parsable)
         end
@@ -96,7 +91,7 @@ end
 ---@return Parsable<T>
 function combinators.before(parsable, token)
     --- @param parser Parser
-    return function (parser)
+    return function(parser)
         local result = parser:accept(parsable)
         parser:consume(token)
         return result
@@ -110,7 +105,7 @@ end
 ---@return Parsable<T>
 function combinators.surrounded(startToken, parsable, endToken)
     --- @param parser Parser
-    return function (parser)
+    return function(parser)
         parser:consume(startToken)
         local result = parser:accept(parsable)
         parser:consume(endToken)
@@ -127,14 +122,14 @@ end
 function combinators.commaSeparated(parsable, closing, isTrailingCommaAllowed)
     if closing then
         --- @param parser Parser
-        return function (parser)
+        return function(parser)
             local list = {}
             if not parser:isNext(closing) then
                 repeat
                     if isTrailingCommaAllowed and parser:check(closing) then
                         break
                     end
-                    list[#list+1] = parser:accept(parsable)
+                    list[#list + 1] = parser:accept(parsable)
                 until not parser:isNext(",")
 
                 parser:consume(closing)
@@ -144,11 +139,11 @@ function combinators.commaSeparated(parsable, closing, isTrailingCommaAllowed)
         end
     else
         --- @param parser Parser
-        return function (parser)
+        return function(parser)
             local list = {}
             -- Does not allow trailing commas
             repeat
-                list[#list+1] = parser:accept(parsable)
+                list[#list + 1] = parser:accept(parsable)
             until not parser:isNext(",")
 
             return list
@@ -162,13 +157,13 @@ end
 ---@return Parsable<T[]>
 function combinators.repeatedly(parsable)
     --- @param parser Parser
-    return function (parser)
+    return function(parser)
         local accept = parser.accept
         local list = {}
 
         local ok, object = pcall(accept, parser, parsable)
         while ok do
-            list[#list+1] = object
+            list[#list + 1] = object
             ok, object = pcall(accept, parser, parsable)
         end
         return list
@@ -182,24 +177,23 @@ end
 ---@return Parsable<T>
 function combinators.repeatedUntil(parsable, untilParsable)
     --- @param parser Parser
-    return function (parser)
+    return function(parser)
         -- TODO: needs testing
         local accept = parser.accept
         local list = {}
 
         while not pcall(accept, parser, untilParsable) do
-            list[#list+1] = accept(parser, parsable)
+            list[#list + 1] = accept(parser, parsable)
         end
         return list
     end
 end
 
-
 -- TODO: group parsables by "starter" field
 --- @param parsables Parsable[]
 function combinators.either(parsables)
     --- @param parser Parser
-    return function (parser)
+    return function(parser)
         parser:setBacktrackPoint()
         for i = 1, #parsables do
             local parsable = parsables[i]
@@ -222,7 +216,7 @@ end
 ---@return Parsable<T>
 function combinators.verify(parsible, verifier)
     --- @param parser Parser
-    return function (parser)
+    return function(parser)
         local object = parser:accept(parsible)
         assert(verifier(object))
         return object

@@ -2,12 +2,13 @@
 
 --- @class Ast: class
 --- @field schema (string | Parsable)[]
+--- @field desugar? fun(self: Ast): Ast desugars this Ast node into another Ast node. Called by this node's parent when this is wrapped in `desugar`.
 local Ast = require("class"):extend("Ast")
 
 --- Inherits the parent class's schema by splicing it at the top of the child's schema
 --- @param subclass self
 function Ast:inheritSchema(subclass)
-    local schema = {unpack(self.schema)}
+    local schema = { unpack(self.schema) }
     local subSchema = subclass.schema
     local len = #schema - 1
     for i = 1, #subSchema do

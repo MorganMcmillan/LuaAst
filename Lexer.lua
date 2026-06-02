@@ -4,6 +4,7 @@ local sub, match = string.sub, string.match
 local max = math.max
 
 local charSets = require("charSets")
+local whitespace = charSets.whitespace
 local ident = charSets.ident
 local identStarter = charSets.identStarter
 local digit = charSets.digit
@@ -84,7 +85,7 @@ end
 --- @return string
 function Lexer:take(n)
     local pos = self.pos
-    return sub(self.input, pos, pos - 1)
+    return sub(self.input, pos, pos + n - 1)
 end
 
 ---Takes characters while they are in a set. The position is then set *after* the end of the taken characters.
@@ -121,7 +122,9 @@ function Lexer:lex(input)
     local n = 1
 
     while self:notEof() do
-        tokens[n], tokenTypes[n] = self:lexToken()
+        local a, b = self:lexToken()
+        print(b)
+        tokens[n], tokenTypes[n] = a, b
         n = n + 1
     end
     tokens[n], tokenTypes[n] = "", "eof"
@@ -158,11 +161,11 @@ function Lexer:lexToken()
             end
         end
     elseif identStarter[c] then
-        local ident = self:takeWhile(ident)
-        if self.keywords[ident] then
-            return ident, "keyword"
+        local identifier = self:takeWhile(ident)
+        if self.keywords[identifier] then
+            return identifier, "keyword"
         end
-        return ident, "identifier"
+        return identifier, "identifier"
         -- TODO: allow adding custom numeric bases, like hex, binary, or other
         -- TODO: lex numbers with decimal points
         -- Perhaps allow a custom function to be used, through a config table.

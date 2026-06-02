@@ -17,7 +17,7 @@ charSets.ws_nl = makeCharSet " \t\r\n"
 charSets.whitespace = makeCharSet " \t"
 charSets.newline = makeCharSet "\r\n"
 
-charSets.sIdentStarter = "aAbBcCdDeEfFgGhHiIjJkKlLmMnNoOpPqQrRsStTuUvVwWxXyYzZ_"
+local sIdentStarter = "aAbBcCdDeEfFgGhHiIjJkKlLmMnNoOpPqQrRsStTuUvVwWxXyYzZ_"
 charSets.identStarter = makeCharSet(sIdentStarter)
 charSets.ident = makeCharSet(sIdentStarter .. "1234567890")
 

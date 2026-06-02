@@ -28,7 +28,7 @@ local defaultEscapeMappings = {
 ---Lexes a string, processing any escape sequences and returning it without any quotes
 ---@param endChar string
 ---@return fun(lexer: Lexer): string
-function tokenCombinators.lexString(endChar, escapeMappings)
+function tokenCombinators.string(endChar, escapeMappings)
     escapeMappings = escapeMappings or defaultEscapeMappings
     local stopChars = {
         [endChar] = true,
@@ -41,6 +41,7 @@ function tokenCombinators.lexString(endChar, escapeMappings)
         -- `\'`: literal single quote
         local stringPieces = {}
 
+        lexer:skip() -- quote
         while lexer:peek() ~= endChar do
             if lexer:peek() == '\\' then
                 lexer:skip()
@@ -63,7 +64,8 @@ function tokenCombinators.lexString(endChar, escapeMappings)
             -- TODO:
             stringPieces[#stringPieces + 1] = lexer:takeUntil(stopChars)
         end
-        return concat(stringPieces)
+        lexer:skip()
+        return concat(stringPieces), "string"
     end
 end
 

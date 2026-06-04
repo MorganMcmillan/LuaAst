@@ -115,7 +115,7 @@ local function expression(precedences)
         local op = parser:peek()
         local prefixBp = prefixBindingPower[op]
         if prefixBp then
-            local rhs = Expression:parse(parser, prefixBp)
+            local rhs = Expression:parsePrecedence(parser, prefixBp)
             return PrefixExpression:init(op, rhs)
         else
             return parser:accept(literal)
@@ -124,8 +124,7 @@ local function expression(precedences)
 
     --- @param parser Parser
     ---@param minBindingPower integer
-    function Expression:parse(parser, minBindingPower)
-        minBindingPower = minBindingPower or 99999
+    function Expression:parsePrecedence(parser, minBindingPower)
         local lhs = primaryExpression(parser)
 
         while true do
@@ -149,11 +148,15 @@ local function expression(precedences)
                 if leftBp < minBindingPower then break end
                 parser:next()
 
-                lhs = BinaryExpression:init(lhs, op, self:parse(parser, rightBp))
+                lhs = BinaryExpression:init(lhs, op, self:parsePrecedence(parser, rightBp))
             end
         end
 
         return lhs
+    end
+
+    function Expression:parse(parser)
+        return self:parsePrecedence(parser, 0)
     end
     
     return Expression

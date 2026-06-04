@@ -4,7 +4,7 @@ local sub, match = string.sub, string.match
 local max = math.max
 
 local charSets = require("charSets")
-local whitespace = charSets.whitespace
+local whitespace = charSets.ws_nl
 local ident = charSets.ident
 local identStarter = charSets.identStarter
 local digit = charSets.digit
@@ -121,12 +121,12 @@ function Lexer:lex(input)
     local tokens, tokenTypes = {}, {}
     local n = 1
 
-    while self:notEof() do
+    while true do
         local a, b = self:lexToken()
         tokens[n], tokenTypes[n] = a, b
+        if b == "eof" then break end
         n = n + 1
     end
-    tokens[n], tokenTypes[n] = "", "eof"
 
     return tokens, tokenTypes
 end
@@ -141,6 +141,7 @@ function Lexer:lexToken()
     self:takeWhile(whitespace)
 
     local c = self:peek()
+    if c == "" then return "eof", "eof" end
 
     local lookahead = self.lookaheads[c]
     if lookahead then
@@ -178,8 +179,10 @@ function Lexer:lexToken()
         end
     elseif digitStarter[c] then
         return self:takeWhile(digit), "number"
+    else
+        error("Unexpected character " .. string.format("%q", c) .. ".")
+        --- @diagnostic disable-next-line: missing-return
     end
-    error("Unexpected character '" .. c .. "'.")
 end
 
 return Lexer

@@ -1,16 +1,21 @@
 local pprint = require("test.pprint")
 local Ast = require("Ast")
-local combinators = require("combinators")
+local cmb = require("combinators")
 local Deferred = require("Deferred")
 local expression = require("expression")
 
-local ExprDeferred = Deferred:create() --[[@as Expression]]
+local ExpressionDeferred = Deferred:create()
 
-local Literal = combinators.either {
-    combinators.identifier,
-    combinators.string,
-    combinators.number,
-    combinators.surrounded("(", ExprDeferred, ")")
+local Function = Ast:extend("Function")
+
+Function.schema = {
+    starter = "function",
+    "name",
+    cmb.identifier,
+    "args",
+    cmb.parenthesizedList(cmb.identifier),
+    "body",
+    cmb.after("{", cmb.repeatedUntil(ExpressionDeferred, cmb.token "}"))
 }
 
 local FunctionCall = Ast:extend("FunctionCall")
@@ -18,7 +23,7 @@ local FunctionCall = Ast:extend("FunctionCall")
 FunctionCall.schema = {
     starter = "(",
     "arguments",
-    combinators.commaSeparated(ExprDeferred, ")")
+    cmb.commaSeparated(ExprDeferred, ")")
 }
 
 local Subscript = Ast:extend("Subscript")
@@ -26,7 +31,7 @@ local Subscript = Ast:extend("Subscript")
 Subscript.schema = {
     starter = "[",
     "index",
-    combinators.before(ExprDeferred, "]")
+    cmb.before(ExprDeferred, "]")
 }
 
 local Field = Ast:extend("Field")
@@ -34,7 +39,7 @@ local Field = Ast:extend("Field")
 Field.schema = {
     starter = ".",
     "name",
-    combinators.identifier
+    cmb.identifier
 }
 
 local MethodCall = Ast:extend("MethodCall")
@@ -42,9 +47,17 @@ local MethodCall = Ast:extend("MethodCall")
 MethodCall.schema = {
     starter = ":",
     "method",
-    combinators.identifier,
+    cmb.identifier,
     "arguments",
-    combinators.after("(", combinators.commaSeparated(ExprDeferred, ")"))
+    cmb.parenthesizedList(ExpressionDeferred)
+}
+
+local Literal = cmb.either {
+    cmb.number,
+    cmb.string,
+    cmb.identifier,
+    cmb.surrounded("(", ExpressionDeferred, ")"),
+    cmb.after("[", cmb.commaSeparated(ExpressionDeferred, "]")),
 }
 
 local Expression = expression {
@@ -63,12 +76,13 @@ local Expression = expression {
     { ['('] = FunctionCall,                 ['['] = Subscript, ['.'] = Field, [':'] = MethodCall },
 }
 
-ExprDeferred:define(Expression)
+ExpressionDeferred:define(Expression)
 
 local Lexer = require("Lexer")
 local Parser = require("Parser")
+local tcmb = require("tokenCombinators")
 
-local tokens = {
+local lexer = Lexer:new {
     "+",
     "-",
     "*",
@@ -94,12 +108,28 @@ local tokens = {
     ")",
     "[",
     "]",
+    "{",
+    "}",
     ".",
     ":",
-    ","
+    ",",
+    ['"'] = tcmb.string('"'),
+    ["'"] = tcmb.string("'"),
+    "function"
 }
 
-local parse = require("parse")
+local input = [[function foo(a, b, c) {
+    a + b * c
+    a / 100
+}
 
-local result = parse("foo.fn(1 + 2)", tokens, Expression)
+function nop() {}]]
+
+local t, tt = lexer:lex(input)
+for i = 1, #t do
+    print(t[i], tt[i])
+end
+local parser = Parser:new(t, tt)
+
+local result = parser:accept(cmb.repeatedUntil(Function, cmb.eof))
 pprint(result)

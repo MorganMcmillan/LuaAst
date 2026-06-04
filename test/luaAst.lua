@@ -1,5 +1,5 @@
 local Ast = require("Ast")
-local cmb = require("combinators")
+local cmb = require("tokenCombinators")
 local Deferred = require("Deferred")
 
 --- @class Statement: Deferred, Ast
@@ -10,15 +10,14 @@ local Expression = Deferred:create()
 
 local Block = cmb.repeated(Statement)
 
-local Parameter = cmb.either{
+local Parameter = cmb.either {
     cmb.identifier,
-    cmb.token"..."
+    cmb.token "..."
 }
 
 --- @alias Body Statement[]
 
---- @type Body
-local Body = cmb.repeatedUntil(Statement, cmb.token"end")
+local Body = cmb.repeatedUntil(Statement, cmb.token "end")
 
 --- @class FunctionDeclaration: Ast
 --- @field name string
@@ -28,9 +27,12 @@ local FunctionDeclaration = Ast:extend("FunctionDeclaration")
 
 FunctionDeclaration.schema = {
     starter = "function",
-    "name", Expression,
-    "parameters", cmb.after("(", cmb.commaSeparated(Parameter, ")")),
-    "body", Body
+    "name",
+    Expression,
+    "parameters",
+    cmb.after("(", cmb.commaSeparated(Parameter, ")")),
+    "body",
+    Body
 }
 
 ---@class MethodDeclaration: Ast
@@ -38,10 +40,14 @@ local MethodDeclaration = Ast:extend("MethodDeclaration")
 
 MethodDeclaration.schema = {
     starter = "function",
-    "name", Expression,
-    "methodName", cmb.after(":", cmb.identifier),
-    "parameters", cmb.after("(", cmb.commaSeparated(Parameter, ")")),
-    "body", Body
+    "name",
+    Expression,
+    "methodName",
+    cmb.after(":", cmb.identifier),
+    "parameters",
+    cmb.after("(", cmb.commaSeparated(Parameter, ")")),
+    "body",
+    Body
 }
 
 --- @class DoStatement: Ast
@@ -50,7 +56,8 @@ local DoStatement = Ast:extend("DoStatement")
 
 DoStatement.schema = {
     starter = "do",
-    "body", Body
+    "body",
+    Body
 }
 
 --- @class ElseIf: Ast
@@ -58,8 +65,10 @@ local ElseIf = Ast:extend("ElseIf")
 
 ElseIf.schema = {
     starter = "elseif",
-    "condition", Expression,
-    "body", Block
+    "condition",
+    Expression,
+    "body",
+    Block
 }
 
 --- @class IfStatement: Ast
@@ -67,13 +76,17 @@ local IfStatement = Ast:extend("IfStatement")
 
 IfStatement.schema = {
     starter = "if",
-    "condition", Expression,
-    "body", cmb.after("then", cmb.repeated(Statement))
-    "elseifs", cmb.repeatedUntil(ElseIf, cmb.either{
-        cmb.token"end",
-        cmb.checkToken"else"
+    "condition",
+    Expression,
+    "body",
+    cmb.after("then", cmb.repeated(Statement))
+    "elseifs",
+    cmb.repeatedUntil(ElseIf, cmb.either {
+        cmb.token "end",
+        cmb.checkToken "else"
     }),
-    "else", cmb.ifAfter("else", Body)
+    "else",
+    cmb.ifAfter("else", Body)
 }
 
 --- @class WhileStatement: Ast
@@ -83,8 +96,10 @@ local WhileStatement = Ast:extend("WhileStatement")
 
 WhileStatement.schema = {
     starter = "while",
-    "condition", Expression,
-    "body", cmb.after("do", Body)
+    "condition",
+    Expression,
+    "body",
+    cmb.after("do", Body)
 }
 
 --- @class RepeatUntilStatement: Ast
@@ -94,8 +109,10 @@ local RepeatUntilStatement = Ast:extend("RepeatUntilStatement")
 
 RepeatUntilStatement.schema = {
     starter = "repeat",
-    "body", Block,
-    "condition", cmb.after("until", Expression)
+    "body",
+    Block,
+    "condition",
+    cmb.after("until", Expression)
 }
 
 --- @class NumericFor: Ast
@@ -108,11 +125,16 @@ local NumericFor = Ast:extend("NumericFor")
 
 NumericFor.schema = {
     starter = "for",
-    "variable", cmb.identifier,
-    "first", cmb.after("=", cmb.number),
-    "last", cmb.after(",", cmb.number),
-    "step", cmb.ifAfter(",", cmb.number),
-    "body", cmb.after("do", Body)
+    "variable",
+    cmb.identifier,
+    "first",
+    cmb.after("=", cmb.number),
+    "last",
+    cmb.after(",", cmb.number),
+    "step",
+    cmb.ifAfter(",", cmb.number),
+    "body",
+    cmb.after("do", Body)
 }
 
 --- @class GenericFor: Ast
@@ -123,9 +145,12 @@ local GenericFor = Ast:extend("GenericFor")
 
 GenericFor.schema = {
     starter = "for",
-    "variables", cmb.commaSeparated(cmb.identifier, "in"),
-    "expressions", cmb.commaSeparated(Expression, "do"),
-    "body", Body
+    "variables",
+    cmb.commaSeparated(cmb.identifier, "in"),
+    "expressions",
+    cmb.commaSeparated(Expression, "do"),
+    "body",
+    Body
 }
 
 --- Expressions
@@ -135,22 +160,24 @@ local FunctionDefinition = Ast:extend("FunctionDefinition")
 
 FunctionDefinition.schema = {
     starter = "function",
-    "parameters", cmb.after("(", cmb.commaSeparated(Parameter, ")")),
-    "body", Body
+    "parameters",
+    cmb.after("(", cmb.commaSeparated(Parameter, ")")),
+    "body",
+    Body
 }
 
 --- @class TableAssignment: Ast
 local TableAssignment = Ast:extend("TableAssignment")
 
 TableAssignment.schema = {
-    "name", cmb.either{
-        cmb.surrounded("[", Expression, "]"),
-        cmb.identifier
-    },
+    "name", cmb.either {
+    cmb.surrounded("[", Expression, "]"),
+    cmb.identifier
+},
     "value", cmb.after("=", Expression)
 }
 
-local TableField = cmb.either{
+local TableField = cmb.either {
     TableAssignment,
     Expression
 }
@@ -161,10 +188,14 @@ local TableConstructor = Ast:extend("TableConstructor")
 
 TableConstructor.schema = {
     starter = "{",
-    "fields", cmb.commaSeparated(TableField, "}", true)
+    "fields",
+    cmb.commaSeparated(TableField, "}", true)
 }
 
-local ExpressionBase = Ast:extend("Expression")
+local expression = require("expression")
+local ExpressionBase = expression {
+    literal = todo
+}
 
 function ExpressionBase:parse(parser)
     -- Parse with precedence

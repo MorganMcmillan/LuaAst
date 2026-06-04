@@ -33,7 +33,7 @@ function PostfixExpression:init(operand, operator)
     self.operator = operator
 end
 
---- @class Precedences 
+--- @class Precedences
 --- @field literal Parsable
 --- @field [integer] [Token[], "prefix" | "binary" | "postfix", "left" | "right"] | [table<Token, Parser>]
 --- An input structure to describe the precedences of tokens and the expression types they belong to.
@@ -47,7 +47,7 @@ end
 --- @return table<Token, integer> prefix, table<Token, [integer, integer]> binary, table<Token, integer> postfix
 local function generateBindingPower(precedences)
     local prefix, binary, postfix = {}, {}, {}
-    
+
     local currentPrecedence = 1
     for _, precedence in ipairs(precedences) do
         if #precedence == 0 then
@@ -133,7 +133,6 @@ local function expression(precedences)
             local postfixBp = postfixBindingPower[op]
             if postfixBp then
                 if postfixBp < minBindingPower then break end
-                parser:next()
 
                 local specialOperator = specialOperators[op]
                 if specialOperator then
@@ -141,6 +140,7 @@ local function expression(precedences)
                     lhs = specialOperator:parse(parser)
                     lhs.operand = operand
                 else
+                    parser:next()
                     lhs = PostfixExpression:new(op, lhs)
                 end
                 shouldBreak = false
@@ -158,14 +158,13 @@ local function expression(precedences)
             end
         end
 
-        print(lhs)
         return lhs
     end
 
     function Expression:parse(parser)
         return self:parsePrecedence(parser, 0)
     end
-    
+
     return Expression
 end
 

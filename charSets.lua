@@ -13,6 +13,8 @@ end
 
 local charSets = {}
 
+charSets.makeCharSet = makeCharSet
+
 charSets.ws_nl = makeCharSet " \t\r\n"
 charSets.whitespace = makeCharSet " \t"
 charSets.newline = makeCharSet "\r\n"

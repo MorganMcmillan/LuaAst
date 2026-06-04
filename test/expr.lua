@@ -1,4 +1,4 @@
-local inspect = require("inspect")
+local pprint = require("test.pprint")
 local Ast = require("Ast")
 local combinators = require("combinators")
 local Deferred = require("Deferred")
@@ -38,7 +38,7 @@ local MethodCall = Ast:extend("MethodCall")
 
 MethodCall.schema = {
     starter = ":",
-    "name", combinators.identifier,
+    "method", combinators.identifier,
     "arguments", combinators.after("(", combinators.commaSeparated(ExprDeferred, ")"))
 }
 
@@ -57,6 +57,8 @@ local Expression = expression {
 	{{'^'}, "binary", "right"},
 	{['('] = FunctionCall, ['['] = Subscript, ['.'] = Field, [':'] = MethodCall},
 }
+
+ExprDeferred:define(Expression)
 
 local Lexer = require("Lexer")
 local Parser = require("Parser")
@@ -89,9 +91,10 @@ local lexer = Lexer:new {
     "]",
     ".",
     ":",
-    ""
+    ","
 }
 
-local parser = Parser:new(lexer:lex("1 + 2 + 3"))
+local parser = Parser:new(lexer:lex("foo.function(1 + 2)"))
 
-print(inspect(Expression:parse(parser)))
+local result = Expression:parse(parser)
+pprint(result)

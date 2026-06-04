@@ -104,8 +104,8 @@ local function expression(precedences)
     for i = 1, #precedences do
         local precedence = precedences[i]
         if #precedence == 0 then
-            for token in pairs(precedence) do
-                specialOperators[token] = precedence
+            for token, parser in pairs(precedence) do
+                specialOperators[token] = parser
             end
         end
     end
@@ -117,7 +117,7 @@ local function expression(precedences)
         if prefixBp then
             parser:next()
             local rhs = Expression:parsePrecedence(parser, prefixBp)
-            return PrefixExpression:init(op, rhs)
+            return PrefixExpression:new(op, rhs)
         else
             return parser:accept(literal)
         end
@@ -137,22 +137,28 @@ local function expression(precedences)
 
                 local specialOperator = specialOperators[op]
                 if specialOperator then
-                    lhs = specialOperator:parse(lhs)
+                    local operand = lhs
+                    lhs = specialOperator:parse(parser)
+                    lhs.operand = operand
                 else
-                    lhs = PostfixExpression:init(op, lhs)
+                    lhs = PostfixExpression:new(op, lhs)
                 end
-            end
+                shouldBreak = false
+            else
+                local binaryBp = binaryBindingPower[op]
+                if binaryBp then
+                    local leftBp, rightBp = binaryBp[1], binaryBp[2]
+                    if leftBp < minBindingPower then break end
+                    parser:next()
 
-            local binaryBp = binaryBindingPower[op]
-            if binaryBp then
-                local leftBp, rightBp = binaryBp[1], binaryBp[2]
-                if leftBp < minBindingPower then break end
-                parser:next()
-
-                lhs = BinaryExpression:init(lhs, op, self:parsePrecedence(parser, rightBp))
+                    lhs = BinaryExpression:new(lhs, op, self:parsePrecedence(parser, rightBp))
+                else
+                    break
+                end
             end
         end
 
+        print(lhs)
         return lhs
     end
 

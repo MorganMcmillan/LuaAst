@@ -33,6 +33,7 @@ function Ast:parse(parser)
         node[field] = parser:accept(t --[[@as Parsable]])
     end
     node:postProcess()
+    return node
 end
 
 return Ast

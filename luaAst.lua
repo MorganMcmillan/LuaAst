@@ -1,19 +1,6 @@
 local Ast = require("Ast")
 local cmb = require("combinators")
-
---- @class Deferred: class
---- @field inner Parsable<any>
-local Deferred = require("class"):extend("Deferred")
-
-function Deferred:define(definition)
-    self.inner = definition
-end
-
---- @param parser Parser
---- @return any
-function Deferred:parse(parser)
-    return self.inner:parse(parser)
-end
+local Deferred = require("Deferred")
 
 --- @class Statement: Deferred, Ast
 local Statement = Deferred:create()

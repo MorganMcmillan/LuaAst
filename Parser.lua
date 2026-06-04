@@ -78,3 +78,5 @@ function Parser:accept(parsable)
         error("Expected parsable (function or class), got " .. t .. ".")
     end
 end
+
+return Parser

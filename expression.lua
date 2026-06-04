@@ -104,7 +104,7 @@ local function expression(precedences)
     for i = 1, #precedences do
         local precedence = precedences[i]
         if #precedence == 0 then
-            for token, parser in pairs(precedence) do
+            for token in pairs(precedence) do
                 specialOperators[token] = precedence
             end
         end
@@ -115,6 +115,7 @@ local function expression(precedences)
         local op = parser:peek()
         local prefixBp = prefixBindingPower[op]
         if prefixBp then
+            parser:next()
             local rhs = Expression:parsePrecedence(parser, prefixBp)
             return PrefixExpression:init(op, rhs)
         else

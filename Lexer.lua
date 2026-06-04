@@ -123,7 +123,6 @@ function Lexer:lex(input)
 
     while self:notEof() do
         local a, b = self:lexToken()
-        print(b)
         tokens[n], tokenTypes[n] = a, b
         n = n + 1
     end

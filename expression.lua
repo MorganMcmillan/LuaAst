@@ -34,13 +34,13 @@ function PostfixExpression:init(operand, operator)
 end
 
 --- @class Precedences 
+--- @field literal Parsable
+--- @field [integer] [Token[], "prefix" | "binary" | "postfix", "left" | "right"] | [table<Token, Parser>]
 --- An input structure to describe the precedences of tokens and the expression types they belong to.
 --- A precedence level is defined as a table containing a list of tokens, the expression type, and their associativity for binary expression.
 --- A precedence level can also be a mapping of tokens to parsers, in which case they will be treated as postfix operators, and the parser's `parse` method will be called with the expression that is a part of it.
 --- Precedences must be ordered from lowest precedence to highest. For example, `*` has higher precedence than `+`, so it should be defined below `+`.
 --- `literal` is the bottom-most precedence. It should be defined as an `either` of literal values and an identifier.
---- @field literal Parser
---- @field [integer] [Token[], "prefix" | "binary" | "postfix", "left" | "right"] | [table<Token, Parser>]
 
 --- Generates the binding power mappings for the given token precedences
 --- @param precedences Precedences
@@ -93,12 +93,12 @@ end
 --- @param precedences Precedences
 --- @return Expression
 local function expression(precedences)
-    local parseLiteral = precedences.literal
+    local literal = precedences.literal
 
     --- @class Expression: class, Ast
     local Expression = class:extend("Expression")
 
-    local prefixBindingPower, BinaryBindingPower, PostfixBindingPower = generateBindingPower(precedences)
+    local prefixBindingPower, binaryBindingPower, postfixBindingPower = generateBindingPower(precedences)
 
     local specialOperators = {}
     for i = 1, #precedences do
@@ -110,7 +110,36 @@ local function expression(precedences)
         end
     end
     --- Todo: parse based on precedences using pratt parsing
-    function Expression:parse(parser, bindingPower)
+    function Expression:parse(parser, minBindingPower)
+        local lhsToken, lhsTT = parser:peek()
+        local lhs = parser:accept(literal)
+
+        while true do
+            local op = parser:peek()
+            local postfixBp = postfixBindingPower[op]
+            if postfixBp then
+                if postfixBp < minBindingPower then break end
+                parser:next()
+
+                local specialOperator = specialOperators[op]
+                if specialOperator then
+                    lhs = specialOperator:parse(lhs)
+                else
+                    lhs = PostfixExpression:init(op, lhs)
+                end
+            end
+
+            local binaryBp = binaryBindingPower[op]
+            if binaryBp then
+                local leftBp, rightBp = binaryBp[1], binaryBp[2]
+                if leftBp < minBindingPower then break end
+                parser:next()
+
+                lhs = BinaryExpression:init(lhs, op, self:parse(parser, rightBp))
+            end
+        end
+
+        return lhs
     end
     
     return Expression

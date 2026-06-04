@@ -109,10 +109,24 @@ local function expression(precedences)
             end
         end
     end
-    --- Todo: parse based on precedences using pratt parsing
+
+    --- @param parser Parser
+    local function primaryExpression(parser)
+        local op = parser:peek()
+        local prefixBp = prefixBindingPower[op]
+        if prefixBp then
+            local rhs = Expression:parse(parser, prefixBp)
+            return PrefixExpression:init(op, rhs)
+        else
+            return parser:accept(literal)
+        end
+    end
+
+    --- @param parser Parser
+    ---@param minBindingPower integer
     function Expression:parse(parser, minBindingPower)
-        local lhsToken, lhsTT = parser:peek()
-        local lhs = parser:accept(literal)
+        minBindingPower = minBindingPower or 99999
+        local lhs = primaryExpression(parser)
 
         while true do
             local op = parser:peek()

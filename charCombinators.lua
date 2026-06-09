@@ -1,10 +1,11 @@
 local char = string.char
+local sub = string.sub
 local concat = table.concat
 local charSets = require("charSets")
 local digit = charSets.digit
 local hexDigit = charSets.hexDigit
 
-local tokenCombinators = {}
+local charCombinators = {}
 
 local defaultEscapeMappings = {
     ["\\a"] = '\a',
@@ -25,10 +26,11 @@ local defaultEscapeMappings = {
 }
 
 
----Lexes a string, processing any escape sequences and returning it without any quotes
----@param endChar string
----@return fun(lexer: Lexer): string, string
-function tokenCombinators.string(endChar, escapeMappings)
+--- Lexes a string, processing any escape sequences and returning it without any quotes
+--- @param endChar char
+--- @param escapeMappings? table<string, string|fun(lexer: Lexer): string>
+--- @return fun(lexer: Lexer): string, string
+function charCombinators.string(endChar, escapeMappings)
     escapeMappings = escapeMappings or defaultEscapeMappings
     local stopChars = {
         [endChar] = true,
@@ -69,4 +71,44 @@ function tokenCombinators.string(endChar, escapeMappings)
     end
 end
 
-return tokenCombinators
+--- Lexes a string with a single character.
+--- @param endChar char
+--- @param escapeMappings? table<string, string|fun(lexer: Lexer): string>
+function charCombinators.singleCharString(endChar, escapeMappings)
+    escapeMappings = escapeMappings or defaultEscapeMappings
+
+    return function(lexer)
+        lexer:skip()
+        local c = lexer:takeUntil({ [endChar] = true })
+        lexer:skip()
+        -- TODO: fix to use lexer instead of raw string
+        if sub(c, 1, 1) == '\\' then
+            local escaped = sub(c, 2, 2)
+            c = escapeMappings[escaped]
+        end
+        return c, "char"
+    end
+end
+
+--- Skips the first character in a token sequence and then concatenates whatever the next combinator returns
+--- @param combinator fun(lexer: Lexer): string, string
+--- @return fun(lexer: Lexer): string, string
+function charCombinators.skipFirstAndThen(combinator)
+    return function(lexer)
+        local first = lexer:next()
+        local rest, tt = combinator(lexer)
+        return first .. rest, tt
+    end
+end
+
+--- Takes characters while they are inside a character set
+--- @param predicate Set<char>
+--- @return fun(lexer: Lexer): string, string
+function charCombinators.takeWhile(predicate)
+    return function(lexer)
+        local result = lexer:takeWhile(predicate)
+        return result, "punctuation"
+    end
+end
+
+return charCombinators

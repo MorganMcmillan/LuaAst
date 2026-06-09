@@ -1,37 +1,4 @@
 local class = require("class")
-local combinators = require("combinators")
-
---- @class BinaryExpression: class, Ast
---- @field left Expression
---- @field operator Token
---- @field right Expression
-local BinaryExpression = class:extend("BinaryExpression")
-
-function BinaryExpression:init(left, operator, right)
-    self.left = left
-    self.operator = operator
-    self.right = right
-end
-
---- @class PrefixExpression: class, Ast
---- @field operator Token
---- @field operand Expression
-local PrefixExpression = class:extend("PrefixExpression")
-
-function PrefixExpression:init(operator, operand)
-    self.operator = operator
-    self.operand = operand
-end
-
---- @class PostfixExpression: class, Ast
---- @field operand Expression
---- @field operator Token
-local PostfixExpression = class:extend("PostfixExpression")
-
-function PostfixExpression:init(operand, operator)
-    self.operand = operand
-    self.operator = operator
-end
 
 --- @class Precedences
 --- @field literal Parsable
@@ -91,9 +58,41 @@ end
 
 --- Creates a new expression class
 --- @param precedences Precedences
---- @return Expression
+--- @return Expression, PrefixExpression, BinaryExpression, PostfixExpression
 local function expression(precedences)
     local literal = precedences.literal
+
+    --- @class BinaryExpression: class, Ast
+    --- @field left Expression
+    --- @field operator string
+    --- @field right Expression
+    local BinaryExpression = class:extend("BinaryExpression")
+
+    function BinaryExpression:init(left, operator, right)
+        self.left = left
+        self.operator = operator
+        self.right = right
+    end
+
+    --- @class PrefixExpression: class, Ast
+    --- @field operator string
+    --- @field operand Expression
+    local PrefixExpression = class:extend("PrefixExpression")
+
+    function PrefixExpression:init(operator, operand)
+        self.operator = operator
+        self.operand = operand
+    end
+
+    --- @class PostfixExpression: class, Ast
+    --- @field operand Expression
+    --- @field operator string
+    local PostfixExpression = class:extend("PostfixExpression")
+
+    function PostfixExpression:init(operand, operator)
+        self.operand = operand
+        self.operator = operator
+    end
 
     --- @class Expression: class, Ast
     local Expression = class:extend("Expression")
@@ -137,13 +136,12 @@ local function expression(precedences)
                 local specialOperator = specialOperators[op]
                 if specialOperator then
                     local operand = lhs
-                    lhs = specialOperator:parse(parser)
+                    lhs = specialOperator:parse(parser, postfixBp)
                     lhs.operand = operand
                 else
                     parser:next()
                     lhs = PostfixExpression:new(op, lhs)
                 end
-                shouldBreak = false
             else
                 local binaryBp = binaryBindingPower[op]
                 if binaryBp then
@@ -165,7 +163,7 @@ local function expression(precedences)
         return self:parsePrecedence(parser, 0)
     end
 
-    return Expression
+    return Expression, PrefixExpression, BinaryExpression, PostfixExpression
 end
 
 return expression

@@ -19,4 +19,5 @@ return {
     Ast = require("Ast"),
     Deferred = require("Deferred"),
     expression = require("expression"),
+    literal = require("literal"),
 }

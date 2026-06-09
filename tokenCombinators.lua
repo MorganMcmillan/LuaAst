@@ -28,46 +28,6 @@ function tokenCombinators.eof(parser)
     return true
 end
 
---- Parses an identifier
---- @param parser Parser
---- @return string
-function tokenCombinators.identifier(parser)
-    local id, type = parser:peek()
-    if type ~= "identifier" then
-        error("Expected identifier, got " .. type .. ".")
-    end
-    parser:skip()
-    return id
-end
-
-local sub = string.sub
-
---- @param parser Parser
-function tokenCombinators.number(parser)
-    local number, type = parser:peek()
-    if type ~= "number" then
-        error("Expected number, got " .. type .. ".")
-    end
-    parser:skip()
-    if sub(number, 1, 2) == "0x" then
-        return tonumber(sub(number, 3), 16)
-    end
-    return tonumber(number)
-end
-
---- @param parser Parser
-function tokenCombinators.string(parser)
-    local string, type = parser:peek()
-    if type ~= "string" then
-        error("Expected string, got " .. type .. ".")
-    end
-    parser:skip()
-    return {
-        name = "string",
-        contents = string
-    }
-end
-
 ---@generic T
 ---@param token string
 ---@param parsable Parsable<T>
@@ -172,7 +132,7 @@ end
 --- @param statement Parsable<T>
 --- @return Parsable<T[]>
 function tokenCombinators.braceBlock(statement)
-    return tokenCombinators.after("{", tokenCombinators.repeatedUntil(statement, "}"))
+    return tokenCombinators.after("{", tokenCombinators.repeatedUntil(statement, tokenCombinators.token "}"))
 end
 
 ---Repeatedly parses a parsable until it cannot anymore
@@ -214,17 +174,19 @@ function tokenCombinators.repeatedUntil(parsable, untilParsable)
 end
 
 -- TODO: group parsables by "starter" field
---- @param parsables (Parsable | Ast)[]
+--- @param parsables Parsable[]
 function tokenCombinators.either(parsables)
     local withStarter, withoutStarter = {}, {}
     for i = 1, #parsables do
         local parsable = parsables[i]
-        if type(parsable) == "table" and parsable.schema and parsable.schema.starter then
-            withStarter[parsable.schema.starter] = parsable
+
+        if type(parsable) == "table" and parsable.starter then
+            withStarter[parsable.starter] = parsable
         else
             withoutStarter[#withoutStarter + 1] = parsable
         end
     end
+
     --- @param parser Parser
     return function(parser)
         local token = parser:peek()
@@ -248,6 +210,25 @@ function tokenCombinators.either(parsables)
     end
 end
 
+--- Matches one of the given tokens, skipping over it if matched.
+--- @param tokens Token[]
+--- @return Parser<Token>
+function tokenCombinators.eitherToken(tokens)
+    local tokenSet = {}
+    for i = 1, #tokens do
+        tokenSet[tokens[i]] = true
+    end
+
+    return function(parser)
+        local token = parser:peek()
+        if tokenSet[token] then
+            parser:skip()
+            return token
+        end
+        error("Expected one of: " .. table.concat(tokens, ", "))
+    end
+end
+
 ---Verifies a parsed object
 ---@generic T
 ---@param parsible Parsable<T>
@@ -259,6 +240,16 @@ function tokenCombinators.verify(parsible, verifier)
         local object = parser:accept(parsible)
         assert(verifier(object))
         return object
+    end
+end
+
+function tokenCombinators.errContext(parsible, message)
+    return function(parser)
+        local ok, result = pcall(parser.accept, parser, parsible)
+        if not ok then
+            error(message)
+        end
+        return result
     end
 end
 

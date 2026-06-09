@@ -1,4 +1,4 @@
----@alias TokenType "number" | "string" | "identifier" | "keyword" | "punctuation" | "eof"
+---@alias TokenType "number" | "string" | "char" | "identifier" | "keyword" | "punctuation" | "eof"
 
 local sub, match = string.sub, string.match
 local max = math.max

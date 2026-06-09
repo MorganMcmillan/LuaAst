@@ -5,7 +5,7 @@ local Deferred = require("Deferred")
 --- @class Statement: Deferred, Ast
 local Statement = Deferred:create()
 
---- @class Expression: Deferred, Ast
+--- @class Expression: Deferred, Ast, ToC
 local Expression = Deferred:create()
 
 local Block = cmb.repeated(Statement)

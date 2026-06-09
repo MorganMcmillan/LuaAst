@@ -1,11 +1,10 @@
---- @alias Parsable<T> { parse: fun(T, Parser): T } | fun(Parser): T
+--- @alias Parsable<T> { parse: fun(T, Parser): T } | fun(Parser): T | Ast
 
---- @class Schema
---- @field starter? string The starter token for this schema
---- @field [integer] string | Parsable
+--- @alias Schema (string | Parsable)[]
 
 --- @class Ast: class
 --- @field schema Schema
+--- @field starter Token? The starter token for this AST node.
 --- @field desugar? fun(self: Ast): Ast desugars this Ast node into another Ast node. Called by this node's parent when this is wrapped in `desugar`.
 local Ast = require("class"):extend("Ast")
 
@@ -33,7 +32,7 @@ end
 function Ast:parse(parser)
     local node = self:create()
     local schema = self.schema
-    local starter = schema.starter
+    local starter = self.starter
     if starter then parser:consume(starter) end
 
     for i = 1, #schema, 2 do

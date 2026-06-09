@@ -4,9 +4,10 @@
 --- @field name string
 --- @field super class
 --- @field __extend fun(self, subclass: class) called whenever the class is extended
+--- @field __name string this class's name
 --- @field init fun(self, ...)
 local class = {
-    name = "class",
+    __name = "class",
     init = function() end,
     __extend = function() end
 }
@@ -21,7 +22,7 @@ end
 --- @param self T | class
 --- @return T
 function class:extend(name)
-    local heir = setmetatable({name = name, super = self}, self)
+    local heir = setmetatable({ __name = name, super = self }, self)
     heir.__index = heir
     heir.__call = self.__call
     heir.__tostring = self.__tostring
